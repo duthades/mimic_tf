@@ -1,22 +1,29 @@
 #!/usr/bin/env python
-import rospy
+"""
+Listens to the tf and performs the computations
+"""
 import math
+import rospy
 import tf
 from std_msgs.msg import String
 import roslib
-from turtlesim.msg import Pose
 import geometry_msgs.msg
+from turtlesim.msg import Pose
 import turtlesim.srv
 roslib.load_manifest('mimic_tf')
 
 
-topic = 'chatter'
-pub = rospy.Publisher(topic, String, queue_size=10)
-rospy.loginfo("I will publish to the topic %s", topic)
+TOPIC = 'chatter'
+PUB = rospy.Publisher(TOPIC, String, queue_size=10)
+rospy.loginfo("I will publish to the topic %s", TOPIC)
 
 
-class turtlePose():
-    pose = Pose()
+class TurtlePose(object):
+    """
+    Data structure to save positions of turtle
+    """
+    def __init__(self):
+        self.pose = Pose()
 
     def update_pose(self, data):
         """Callback function which is called when a new message of type
@@ -29,75 +36,75 @@ class turtlePose():
 if __name__ == '__main__':
 
     rospy.init_node('tf_listener')
-    listener = tf.TransformListener()
+    LISTENER = tf.TransformListener()
 
     rospy.wait_for_service('spawn')
-    spawner = rospy.ServiceProxy('spawn', turtlesim.srv.Spawn)
-    spawner(4, 2, 0, 'turtle2')
+    SPAWNER = rospy.ServiceProxy('spawn', turtlesim.srv.Spawn)
+    SPAWNER(4, 2, 0, 'turtle2')
 
-    turtle_vel = rospy.Publisher('turtle2/cmd_vel', geometry_msgs.msg.Twist,
+    TURTLE_VEL = rospy.Publisher('turtle2/cmd_vel', geometry_msgs.msg.Twist,
                                  queue_size=1)
 
 #  Get the pose of the turtle2
-    pose_data = turtlePose()
-    rospy.Subscriber('/turtle2/pose', Pose, pose_data.update_pose)
+    POSE_DATA = TurtlePose()
+    rospy.Subscriber('/turtle2/pose', Pose, POSE_DATA.update_pose)
 
-    rate = rospy.Rate(10)
+    RATE = rospy.Rate(10)
 
     i = 0
 
     while not rospy.is_shutdown():
         try:
 
-            (trans, rot) = listener.lookupTransform('/turtle2', '/turtle1',
+            (TRANS, ROT) = LISTENER.lookupTransform('/turtle2', '/turtle1',
                                                     rospy.Time(0))
             if i == 0:
-                distance = math.sqrt(trans[0] ** 2 + trans[1] ** 2)
+                DISTANCE = math.sqrt(TRANS[0] ** 2 + TRANS[1] ** 2)
                 i = i + 1
 
         except (tf.LookupException, tf.ConnectivityException,
                 tf.ExtrapolationException):
             continue
 
-        theta = tf.transformations.euler_from_quaternion(rot)[2]
+        THETA = tf.transformations.euler_from_quaternion(ROT)[2]
 
-        str1 = str("x,y: %s" % str(trans))
-        rospy.loginfo(str1)
-        pub.publish(str1)
+        STR1 = str("x,y: %s" % str(TRANS))
+        rospy.loginfo(STR1)
+        PUB.publish(STR1)
 
-        distance1 = math.sqrt(trans[0] ** 2 + trans[1] ** 2)
+        CURRENT_DISTANCE = math.sqrt(TRANS[0] ** 2 + TRANS[1] ** 2)
 
-        cmd = geometry_msgs.msg.Twist()
-        multiplier = 1
-        if (distance1 - distance < -0.04 and trans[0] >= 0):
-            linear = -1 * multiplier * distance
-        elif (distance1 - distance > 0.04 and trans[0] >= 0):
-            linear = 1 * multiplier * distance
-        elif (distance1 - distance < -0.04 and trans[0] < 0):
-            linear = 1 * multiplier * distance
-        elif (distance1 - distance > 0.04 and trans[0] < 0):
-            linear = -1 * multiplier * distance
+        CMD = geometry_msgs.msg.Twist()
+        MULTIPLIER = 1
+        if (CURRENT_DISTANCE - DISTANCE < -0.04 and TRANS[0] >= 0):
+            LINEAR = -1 * MULTIPLIER * DISTANCE
+        elif (CURRENT_DISTANCE - DISTANCE > 0.04 and TRANS[0] >= 0):
+            LINEAR = 1 * MULTIPLIER * DISTANCE
+        elif (CURRENT_DISTANCE - DISTANCE < -0.04 and TRANS[0] < 0):
+            LINEAR = 1 * MULTIPLIER * DISTANCE
+        elif (CURRENT_DISTANCE - DISTANCE > 0.04 and TRANS[0] < 0):
+            LINEAR = -1 * MULTIPLIER * DISTANCE
         else:
-            linear = 0
+            LINEAR = 0
 
-        if theta < -0.05:
-            time = abs(theta) * 0.5
-            cmd.angular.z = -1*abs(theta)*2
-            rospy.sleep(time)
-        elif theta > 0.05:
-            time = abs(theta) * 0.5
-            cmd.angular.z = 1*abs(theta)*2
-            rospy.sleep(time)
-        elif theta < -1:
-            time = abs(theta) * 0.5
-            cmd.angular.z = -1*abs(theta)*5
-            rospy.sleep(time)
-        elif theta > 1:
-            time = abs(theta) * 0.5
-            cmd.angular.z = 1*abs(theta)*5
-            rospy.sleep(time)
+        if THETA < -0.05:
+            TIME = abs(THETA) * 0.5
+            CMD.angular.z = -1 * abs(THETA) * 2
+            rospy.sleep(TIME)
+        elif THETA > 0.05:
+            TIME = abs(THETA) * 0.5
+            CMD.angular.z = 1 * abs(THETA) * 2
+            rospy.sleep(TIME)
+        elif THETA < -1:
+            TIME = abs(THETA) * 0.5
+            CMD.angular.z = -1 * abs(THETA) * 10
+            rospy.sleep(TIME)
+        elif THETA > 1:
+            TIME = abs(THETA) * 0.5
+            CMD.angular.z = 1 * abs(THETA) * 10
+            rospy.sleep(TIME)
         else:
-            cmd.angular.z = 0
+            CMD.angular.z = 0
 
-        cmd.linear.x = linear
-        turtle_vel.publish(cmd)
+        CMD.linear.x = LINEAR
+        TURTLE_VEL.publish(CMD)
